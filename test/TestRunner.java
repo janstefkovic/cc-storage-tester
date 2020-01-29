@@ -2,10 +2,10 @@
  * Jan Stefkovic, 11743161
  *
  * https://howtodoinjava.com/library/json-simple-read-write-json-examples/
- *
+ * https://mkyong.com/java/how-to-send-http-request-getpost-in-java/
+ * https://www.journaldev.com/878/java-write-to-file
  */
 
-import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
@@ -24,12 +24,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.junit.Before;
 import org.junit.Test;
-import scala.Int;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -39,9 +35,37 @@ import static org.junit.Assert.assertTrue;
 
 public class TestRunner {
 
+    /** array to store MOCK_DATA.json */
     private JSONArray readList = new JSONArray();
+    /** httpClient */
     private final CloseableHttpClient httpClient = HttpClients.createDefault();
+    /** simple text  log file */
+    private static File file = new File("TestLog.txt");
 
+    /** helper function to write logs with one command */
+    private static void writeToLogFile(String data) {
+        FileWriter fw = null;
+        BufferedWriter bw = null;
+        String dataWithNewLine = data + System.getProperty("line.separator");
+        try {
+            fw = new FileWriter(file, true);
+            bw = new BufferedWriter(fw);
+
+            bw.write(dataWithNewLine);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                bw.close();
+                fw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /** helper function to look for JSON (key, value) pair */
     private static JSONObject findInArrayByID (JSONArray array, long key) {
         for (int i = 0; i < 1000; i++) {
             JSONObject o = (JSONObject) array.get(i);
@@ -52,7 +76,7 @@ public class TestRunner {
         return null;
     }
 
-    /** Our test file is small so we can store it all in memory. */
+    /** Our test file is small so we can store it all in memory before. */
     @Before
     public void readAndStoreJsonFile() {
 
@@ -75,17 +99,24 @@ public class TestRunner {
     @Test
     public void testIfJsonFileRead() {
 
+        writeToLogFile("Test 1: If JSON file was read correctly.");
+
         // create object manually
         JSONObject fifthObject = new JSONObject();
         fifthObject.put("id",5);
         fifthObject.put("email","ltynnan4@1und1.de");
 
-        assertEquals(findInArrayByID(readList,5).toJSONString(), fifthObject.toJSONString());
+        writeToLogFile("Expected: " + fifthObject.toJSONString());
+        writeToLogFile("Actual: " + findInArrayByID(readList,5).toJSONString());
 
+        assertEquals(fifthObject.toJSONString(), findInArrayByID(readList,5).toJSONString());
     }
 
     @Test
     public void storeOne() throws UnsupportedEncodingException {
+
+        writeToLogFile("Test 2: Store one (key, value) pair.");
+
         HttpPost post = new HttpPost("http://localhost:6789/save");
 
         List<NameValuePair> urlParameters = new ArrayList<>();
@@ -98,7 +129,7 @@ public class TestRunner {
 
             String answer = EntityUtils.toString(response.getEntity());
             assertEquals("{\"message\":\"Saved Key Value\",\"success\":true}", answer);
-            System.out.println(answer);
+            writeToLogFile(answer);
         } catch (ClientProtocolException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -108,36 +139,40 @@ public class TestRunner {
 
     @Test
     public void getOne() {
+
+        writeToLogFile("Test 3: Get the previously stored one (key, value) pair.");
+
         HttpGet request = new HttpGet("http://localhost:6789/0");
 
-     try (CloseableHttpResponse response = httpClient.execute(request)) {
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
 
             // Get HttpResponse Status
-            System.out.println(response.getStatusLine().toString());
+            //writeToLogFile(response.getStatusLine().toString());
 
             HttpEntity entity = response.getEntity();
-            //Header headers = entity.getContentType();
-            //System.out.println(headers);
 
             String result = "";
 
             if (entity != null) {
                 // return it as a String
                 result = EntityUtils.toString(entity);
-                System.out.println(result);
+                writeToLogFile(result);
             }
 
             assertEquals("{\"key\":\"0\",\"value\":\"test@mail.com\",\"success\":true}", result);
 
         } catch (ClientProtocolException e) {
          e.printStackTrace();
-     } catch (IOException e) {
+        } catch (IOException e) {
          e.printStackTrace();
-     }
+        }
     }
 
     @Test
     public void storeAll() throws UnsupportedEncodingException {
+
+        writeToLogFile("Test 4: Store all (key, value) pairs.");
+
         for (int i = 0; i < 1000; i++) {
             JSONObject o = (JSONObject) readList.get(i);
 
@@ -157,7 +192,7 @@ public class TestRunner {
 
                 String answer = EntityUtils.toString(response.getEntity());
                 assertEquals("{\"message\":\"Saved Key Value\",\"success\":true}", answer);
-                System.out.println(answer);
+                writeToLogFile(Integer.toString(i+1) + answer);
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -169,6 +204,8 @@ public class TestRunner {
     //TODO this does not guarantee three different buckets
     @Test
     public void getThreeRandom() {
+
+        writeToLogFile("Test 5: Access three random (key, value) pairs and compare them to our test file.");
 
         // create instance of Random class
         Random rand = new Random();
@@ -191,9 +228,7 @@ public class TestRunner {
         for (Integer i : myInts) {
 
             // Get object from data file
-
-            // in our file the object is on index i-1
-            JSONObject o = (JSONObject) readList.get(i-1);
+            JSONObject o = findInArrayByID(readList, i);
             String key = Long.toString((long) o.get("id"));
             String value = (String) o.get("email");
 
@@ -203,18 +238,16 @@ public class TestRunner {
             try (CloseableHttpResponse response = httpClient.execute(request)) {
 
                 // Get HttpResponse Status
-                System.out.println(response.getStatusLine().toString());
+                //System.out.println(response.getStatusLine().toString());
 
                 HttpEntity entity = response.getEntity();
-                //Header headers = entity.getContentType();
-                //System.out.println(headers);
 
                 String result = "";
 
                 if (entity != null) {
                     // return it as a String
                     result = EntityUtils.toString(entity);
-                    System.out.println(result);
+                    writeToLogFile(Integer.toString(i) + result);
                 }
 
                 assertEquals("{\"key\":\"" + key + "\",\"value\":\"" + value + "\",\"success\":true}", result);
@@ -225,13 +258,12 @@ public class TestRunner {
                 e.printStackTrace();
             }
         }
-
-
-
     }
 
     @Test
     public void deleteTwoRandom() {
+
+        writeToLogFile("Test 6: Choose two random keys, verify their presence, then delete them and verify their absence.");
 
         // create instance of Random class
         Random rand = new Random();
@@ -251,9 +283,7 @@ public class TestRunner {
         for (Integer i : myInts) {
 
             // Get object from data file
-
-            // in our file the object is on index i-1
-            JSONObject o = (JSONObject) readList.get(i-1);
+            JSONObject o = findInArrayByID(readList, i);
             String key = Long.toString((long) o.get("id"));
             String value = (String) o.get("email");
 
@@ -263,23 +293,21 @@ public class TestRunner {
             try (CloseableHttpResponse response = httpClient.execute(request)) {
 
                 // Get HttpResponse Status
-                System.out.println(response.getStatusLine().toString());
+                //System.out.println(response.getStatusLine().toString());
 
                 HttpEntity entity = response.getEntity();
-                //Header headers = entity.getContentType();
-                //System.out.println(headers);
 
                 String result = "";
 
                 if (entity != null) {
                     // return it as a String
                     result = EntityUtils.toString(entity);
-                    System.out.println(result);
+                    writeToLogFile(Integer.toString(i) + result);
                 }
 
                 assertEquals("{\"key\":\"" + key + "\",\"value\":\"" + value + "\",\"success\":true}", result);
 
-                System.out.println("The object is present.");
+                writeToLogFile("The object " + Integer.toString(i) +" is present.");
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -292,23 +320,20 @@ public class TestRunner {
             try (CloseableHttpResponse response = httpClient.execute(delRequest)) {
 
                 // Get HttpResponse Status
-                System.out.println(response.getStatusLine().toString());
+                //System.out.println(response.getStatusLine().toString());
 
                 HttpEntity entity = response.getEntity();
-                //Header headers = entity.getContentType();
-                //System.out.println(headers);
 
                 String result = "";
 
                 if (entity != null) {
                     // return it as a String
                     result = EntityUtils.toString(entity);
-                    System.out.println(result);
+                    writeToLogFile(Integer.toString(i) + result);
                 }
 
                 assertEquals("{\"message\":\"Successfully deleted\",\"success\":true}", result);
 
-                System.out.println("The object is present.");
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -319,23 +344,21 @@ public class TestRunner {
             try (CloseableHttpResponse response = httpClient.execute(request)) {
 
                 // Get HttpResponse Status
-                System.out.println(response.getStatusLine().toString());
+                //System.out.println(response.getStatusLine().toString());
 
                 HttpEntity entity = response.getEntity();
-                //Header headers = entity.getContentType();
-                //System.out.println(headers);
 
                 String result = "";
 
                 if (entity != null) {
                     // return it as a String
                     result = EntityUtils.toString(entity);
-                    System.out.println(result);
+                    writeToLogFile(Integer.toString(i) + result);
                 }
 
                 assertEquals("{\"success\":false,\"error\":\"NO_SUCH_KEY\"}", result);
 
-                System.out.println("The object is not present.");
+                writeToLogFile("The object " + Integer.toString(i) +" is now absent.");
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -347,23 +370,24 @@ public class TestRunner {
 
     @Test
     public void getRange() {
+
+        writeToLogFile("Test 7: Request a range of keys (\"2..3\") and their values.");
+
         HttpGet request = new HttpGet("http://localhost:6789/range/2/3");
 
         try (CloseableHttpResponse response = httpClient.execute(request)) {
 
             // Get HttpResponse Status
-            System.out.println(response.getStatusLine().toString());
+            //System.out.println(response.getStatusLine().toString());
 
             HttpEntity entity = response.getEntity();
-            //Header headers = entity.getContentType();
-            //System.out.println(headers);
 
             String result = "";
 
             if (entity != null) {
                 // return it as a String
                 result = EntityUtils.toString(entity);
-                System.out.println(result);
+                writeToLogFile(result);
             }
 
             /** verify if keys in result have first char '2' or '3' */
@@ -391,7 +415,6 @@ public class TestRunner {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
     }
 }
