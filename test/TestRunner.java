@@ -11,6 +11,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestRunner {
 
@@ -228,4 +230,168 @@ public class TestRunner {
 
     }
 
+    @Test
+    public void deleteTwoRandom() {
+
+        // create instance of Random class
+        Random rand = new Random();
+
+        // Generate random integers in range 0 to 999
+        int rand_int1 = rand.nextInt(1000);
+        int rand_int2 = rand.nextInt(1000);
+
+        // Shift it to range 1 to 1000
+        rand_int1++;
+        rand_int2++;
+
+        List<Integer> myInts = new ArrayList<Integer>();
+        myInts.add(rand_int1);
+        myInts.add(rand_int2);
+
+        for (Integer i : myInts) {
+
+            // Get object from data file
+
+            // in our file the object is on index i-1
+            JSONObject o = (JSONObject) readList.get(i-1);
+            String key = Long.toString((long) o.get("id"));
+            String value = (String) o.get("email");
+
+            // Get object from database
+            HttpGet request = new HttpGet("http://localhost:6789/" + Integer.toString(i));
+
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+
+                // Get HttpResponse Status
+                System.out.println(response.getStatusLine().toString());
+
+                HttpEntity entity = response.getEntity();
+                //Header headers = entity.getContentType();
+                //System.out.println(headers);
+
+                String result = "";
+
+                if (entity != null) {
+                    // return it as a String
+                    result = EntityUtils.toString(entity);
+                    System.out.println(result);
+                }
+
+                assertEquals("{\"key\":\"" + key + "\",\"value\":\"" + value + "\",\"success\":true}", result);
+
+                System.out.println("The object is present.");
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            /** Delete object from database */
+            HttpDelete delRequest = new HttpDelete("http://localhost:6789/" + Integer.toString(i));
+
+            try (CloseableHttpResponse response = httpClient.execute(delRequest)) {
+
+                // Get HttpResponse Status
+                System.out.println(response.getStatusLine().toString());
+
+                HttpEntity entity = response.getEntity();
+                //Header headers = entity.getContentType();
+                //System.out.println(headers);
+
+                String result = "";
+
+                if (entity != null) {
+                    // return it as a String
+                    result = EntityUtils.toString(entity);
+                    System.out.println(result);
+                }
+
+                assertEquals("{\"message\":\"Successfully deleted\",\"success\":true}", result);
+
+                System.out.println("The object is present.");
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            /** Check that object is not present in database */
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+
+                // Get HttpResponse Status
+                System.out.println(response.getStatusLine().toString());
+
+                HttpEntity entity = response.getEntity();
+                //Header headers = entity.getContentType();
+                //System.out.println(headers);
+
+                String result = "";
+
+                if (entity != null) {
+                    // return it as a String
+                    result = EntityUtils.toString(entity);
+                    System.out.println(result);
+                }
+
+                assertEquals("{\"success\":false,\"error\":\"NO_SUCH_KEY\"}", result);
+
+                System.out.println("The object is not present.");
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    @Test
+    public void getRange() {
+        HttpGet request = new HttpGet("http://localhost:6789/range/2/3");
+
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+
+            // Get HttpResponse Status
+            System.out.println(response.getStatusLine().toString());
+
+            HttpEntity entity = response.getEntity();
+            //Header headers = entity.getContentType();
+            //System.out.println(headers);
+
+            String result = "";
+
+            if (entity != null) {
+                // return it as a String
+                result = EntityUtils.toString(entity);
+                System.out.println(result);
+            }
+
+            /** verify if keys in result have first char '2' or '3' */
+            JSONParser jsonParser = new JSONParser();
+            JSONArray jsonResult = new JSONArray();
+
+            try
+            {
+                Object obj = jsonParser.parse(result);
+                jsonResult = (JSONArray) obj;
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+            for (int i = 0; i < jsonResult.size(); i++) {
+                JSONObject o = (JSONObject) jsonResult.get(i);
+                String key = (String) o.get("key");
+                String firstChar = String.valueOf(key.charAt(0));
+
+
+                assertTrue("2".equals(firstChar) || "3".equals(firstChar));
+                }
+            } catch (ClientProtocolException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
 }
